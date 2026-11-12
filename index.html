@@ -1061,5 +1061,25 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    <script type="module">
+  import { createClient }
+    from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+  const SUPABASE_URL = 'utuqfkpazfywhtuvtrmi';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_sBZMv8jOei3sVBRhtckfhA_u2bhn8zB';
+
+  const supabase = createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+  // ตรวจสอบการเชื่อมต่อและสถานะ Login
+  const { data: { session }, error } =
+    await supabase.auth.getSession();
+
+  console.log('Supabase connected');
+  console.log('Login session:', session);
+  console.log('Error:', error);
+</script>
 </body>
 </html>

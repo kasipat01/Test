@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KCPLUS e-Portfolio System</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Noto Sans Thai', 'sans-serif'] },
+                    colors: {
+                        primary: '#ff7eb3',
+                        secondary: '#7eb3ff',
+                        bglight: '#fdfbfb',
+                        dark: '#2d3748'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- React & Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { font-family: 'Noto Sans Thai', sans-serif; background-color: #f0f4f8; overflow-x: hidden; }
+        
+        /* Animated Background */
+        .bg-animated {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1; overflow: hidden; background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+        }
+        .shape {
+            position: absolute; filter: blur(50px); opacity: 0.6; animation: float 10s infinite ease-in-out alternate;
+        }
+        .shape-1 { background: #ff7eb3; width: 300px; height: 300px; border-radius: 50%; top: -10%; left: -10%; animation-delay: 0s; }
+        .shape-2 { background: #7eb3ff; width: 400px; height: 400px; border-radius: 50%; bottom: -10%; right: -10%; animation-delay: 2s; }
+        .shape-3 { background: #a27eff; width: 200px; height: 200px; border-radius: 50%; top: 40%; left: 50%; animation-delay: 4s; }
+        
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 50px) scale(1.1); }
+        }
+
+        /* Hover Effects */
+        .hover-bounce { transition: all 0.3s ease; }
+        .hover-bounce:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Hide scrollbar for bottom nav */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Modal Overlay */
+        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+
+        /* Prevent text bleeding */
+        .break-word { word-break: break-word; overflow-wrap: break-word; }
+        
+        /* Spacing for mobile bottom nav */
+        .main-content-mobile { padding-bottom: 80px; }
+        @media (min-width: 768px) { .main-content-mobile { padding-bottom: 24px; } }
+    </style>
+</head>
+<body>
+    <div class="bg-animated">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // --- ICON COMPONENTS (Inline SVG to avoid external dependencies) ---
+        const Icon = ({ path, className = "w-6 h-6", fill="none", stroke="currentColor", strokeWidth="2" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" className={className} fill={fill} viewBox="0 0 24 24" stroke={stroke} strokeWidth={strokeWidth}>
+                <path strokeLinecap="round" strokeLinejoin="round" d={path} />
+            </svg>
+        );
+        const Icons = {
+            Home: () => <Icon path="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />,
+            User: () => <Icon path="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />,
+            Edit: () => <Icon path="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />,
+            Award: () => <Icon path="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />,
+            File: () => <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
+            More: () => <Icon path="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />,
+            Upload: () => <Icon path="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />,
+            List: () => <Icon path="M4 6h16M4 10h16M4 14h16M4 18h16" />,
+            Settings: () => <Icon path="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />,
+            Logout: () => <Icon path="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />,
+            Eye: () => <Icon path="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />,
+            EyeOff: () => <Icon path="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />,
+            Menu: () => <Icon path="M4 6h16M4 12h16M4 18h16" />,
+            Trash: () => <Icon path="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        };
+
+        // --- CONSTANTS ---
+        const CATEGORIES = [
+            "หมวด 1 ข้อมูลส่วนตัว",
+            "หมวด 2 เรียงความ",
+            "หมวด 3 หนังสือรับรอง",
+            "หมวด 4 ผลงาน",
+            "หมวด 5 ข้อมูลเพิ่มเติม"
+        ];
+        
+        const COLORS = ['#ff7eb3', '#7eb3ff', '#a27eff', '#ffb86c', '#00d2ff'];
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            // STATE
+            const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('isLoggedIn') === 'true');
+            const [currentRoute, setCurrentRoute] = useState('landing');
+            const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+            const [portfolios, setPortfolios] = useState(() => JSON.parse(localStorage.getItem('portfolios')) || []);
+            const [settings, setSettings] = useState(() => JSON.parse(localStorage.getItem('sysSettings')) || {
+                systemName: 'KCPLUS e-Portfolio System',
+                desc: 'ระบบรวบรวมแฟ้มสะสมผลงานออนไลน์ นายกษิดิ์พัฒน์ สุมนัสพงศ์',
+                currentYear: '2568',
+                years: ['2567', '2568'],
+                publicToggles: CATEGORIES.reduce((acc, cat) => ({...acc, [cat]: true}), {}),
+                adminUser: 'admin',
+                adminPass: '1234'
+            });
+
+            // EFFECTS
+            useEffect(() => { localStorage.setItem('isLoggedIn', isLoggedIn); }, [isLoggedIn]);
+            useEffect(() => { localStorage.setItem('portfolios', JSON.stringify(portfolios)); }, [portfolios]);
+            useEffect(() => { localStorage.setItem('sysSettings', JSON.stringify(settings)); }, [settings]);
+
+            // Filtered Portfolios for current year
+            const activePortfolios = portfolios.filter(p => p.academicYear === settings.currentYear);
+
+            // RENDER LOGIC
+            if (!isLoggedIn && currentRoute !== 'landing') {
+                setCurrentRoute('landing');
+            }
+
+            return (
+                <div className="min-h-screen text-gray-800 flex flex-col">
+                    {/* Header */}
+                    <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3 w-3/4">
+                                {isLoggedIn && (
+                                    <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition">
+                                        <Icons.Menu />
+                                    </button>
+                                )}
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold shadow-md shrink-0">
+                                    KC
+                                </div>
+                                <h1 className="text-lg md:text-xl font-bold truncate bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-500">
+                                    {settings.systemName}
+                                </h1>
+                            </div>
+                            <div>
+                                {!isLoggedIn ? (
+                                    <button onClick={() => document.getElementById('loginModal').classList.remove('hidden')} className="hover-bounce bg-white border-2 border-primary text-primary px-4 py-2 rounded-full font-medium shadow-sm hover:bg-primary hover:text-white transition">
+                                        เข้าสู่ระบบ
+                                    </button>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <span className="hidden sm:inline text-sm font-medium text-gray-600">ผู้ดูแลระบบ</span>
+                                        <button onClick={() => { setIsLoggedIn(false); setCurrentRoute('landing'); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="ออกจากระบบ">
+                                            <Icons.Logout />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Body */}
+                    <div className="flex flex-1 overflow-hidden relative">
+                        {isLoggedIn ? (
+                            <>
+                                {/* Desktop Sidebar */}
+                                <aside className={`${isSidebarOpen ? 'w-64' : 'w-0 opacity-0'} hidden md:flex flex-col transition-all duration-300 bg-white/60 backdrop-blur-md shadow-lg z-40 overflow-hidden shrink-0`}>
+                                    <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
+                                        <div className="text-xs font-bold text-gray-400 mb-4 px-2 uppercase tracking-wider">ปีการศึกษา: {settings.currentYear}</div>
+                                        <SidebarItem icon={<Icons.Home />} label="หน้าหลัก" active={currentRoute === 'dashboard'} onClick={() => setCurrentRoute('dashboard')} />
+                                        <SidebarItem icon={<Icons.Upload />} label="อัปโหลดผลงาน" active={currentRoute === 'upload'} onClick={() => setCurrentRoute('upload')} />
+                                        <SidebarItem icon={<Icons.List />} label="ผลงานทั้งหมด" active={currentRoute === 'manage'} onClick={() => setCurrentRoute('manage')} />
+                                        <div className="pt-4 pb-2 text-xs font-bold text-gray-400 px-2 uppercase tracking-wider">หมวดหมู่</div>
+                                        {CATEGORIES.map((cat, idx) => (
+                                            <SidebarItem key={idx} icon={getCategoryIcon(idx)} label={cat} active={currentRoute === `cat_${idx}`} onClick={() => setCurrentRoute(`cat_${idx}`)} />
+                                        ))}
+                                        <div className="pt-4"></div>
+                                        <SidebarItem icon={<Icons.Settings />} label="ตั้งค่าระบบ" active={currentRoute === 'settings'} onClick={() => setCurrentRoute('settings')} />
+                                    </nav>
+                                </aside>
+
+                                {/* Main Content Area */}
+                                <main className="flex-1 overflow-y-auto p-4 md:p-6 main-content-mobile w-full">
+                                    {currentRoute === 'dashboard' && <Dashboard portfolios={activePortfolios} />}
+                                    {currentRoute === 'upload' && <UploadForm portfolios={portfolios} setPortfolios={setPortfolios} currentYear={settings.currentYear} setCurrentRoute={setCurrentRoute} />}
+                                    {currentRoute === 'manage' && <ManagePortfolios portfolios={portfolios} setPortfolios={setPortfolios} activePortfolios={activePortfolios} currentYear={settings.currentYear} />}
+                                    {currentRoute === 'settings' && <Settings settings={settings} setSettings={setSettings} portfolios={portfolios} setPortfolios={setPortfolios} />}
+                                    {currentRoute.startsWith('cat_') && (
+                                        <CategoryView categoryName={CATEGORIES[parseInt(currentRoute.split('_')[1])]} portfolios={activePortfolios} />
+                                    )}
+                                </main>
+
+                                {/* Mobile Bottom Nav */}
+                                <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-lg shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-50 pb-safe rounded-t-2xl px-2 pt-2">
+                                    <div className="flex justify-between items-center overflow-x-auto no-scrollbar pb-2">
+                                        <BottomNavItem icon={<Icons.Home />} label="หลัก" active={currentRoute === 'dashboard'} onClick={() => setCurrentRoute('dashboard')} />
+                                        <BottomNavItem icon={<Icons.Upload />} label="อัปโหลด" active={currentRoute === 'upload'} onClick={() => setCurrentRoute('upload')} />
+                                        <BottomNavItem icon={<Icons.List />} label="ผลงาน" active={currentRoute === 'manage'} onClick={() => setCurrentRoute('manage')} />
+                                        <BottomNavItem icon={<Icons.Settings />} label="ตั้งค่า" active={currentRoute === 'settings'} onClick={() => setCurrentRoute('settings')} />
+                                    </div>
+                                </nav>
+                            </>
+                        ) : (
+                            <main className="flex-1 overflow-y-auto w-full">
+                                <LandingPage settings={settings} portfolios={activePortfolios} />
+                            </main>
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <footer className="bg-white/80 py-4 text-center text-sm text-gray-500 z-40 mt-auto border-t">
+                        © 2025 [นายกษิดิ์พัฒน์ สุมนัสพงศ์]. All rights reserved.
+                    </footer>
+
+                    {/* Login Modal */}
+                    {!isLoggedIn && <LoginModal setIsLoggedIn={setIsLoggedIn} settings={settings} />}
+                </div>
+            );
+        };
+
+        // --- HELPER COMPONENTS ---
+
+        const getCategoryIcon = (index) => {
+            const icons = [<Icons.User/>, <Icons.Edit/>, <Icons.File/>, <Icons.Award/>, <Icons.More/>];
+            return icons[index % icons.length];
+        };
+
+        const SidebarItem = ({ icon, label, active, onClick }) => (
+            <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition hover-bounce ${active ? 'bg-gradient-to-r from-primary/10 to-secondary/10 text-primary font-semibold' : 'text-gray-600 hover:bg-white/80'}`}>
+                <div className={`${active ? 'text-primary' : 'text-gray-400'}`}>{icon}</div>
+                <span className="truncate text-sm">{label}</span>
+            </button>
+        );
+
+        const BottomNavItem = ({ icon, label, active, onClick }) => (
+            <button onClick={onClick} className={`flex flex-col items-center justify-center min-w-[70px] p-2 rounded-xl transition ${active ? 'text-primary' : 'text-gray-400'}`}>
+                <div className={`p-1.5 rounded-full ${active ? 'bg-primary/10' : ''} transition-all duration-300`}>
+                    {icon}
+                </div>
+                <span className="text-[10px] mt-1 font-medium">{label}</span>
+            </button>
+        );
+
+        const Modal = ({ id, title, onClose, children }) => (
+            <div id={id} className="hidden fixed inset-0 z-[100] flex items-center justify-center modal-overlay p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all animate-[pop_0.3s_ease-out]">
+                    <div className="p-5 border-b flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur-sm z-10">
+                        <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-500">{title}</h2>
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 bg-gray-100 rounded-full">
+                            <Icon path="M6 18L18 6M6 6l12 12" />
+                        </button>
+                    </div>
+                    <div className="p-6">
+                        {children}
+                    </div>
+                </div>
+                <style>{`@keyframes pop { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }`}</style>
+            </div>
+        );
+
+        // --- VIEW COMPONENTS ---
+
+        const LoginModal = ({ setIsLoggedIn, settings }) => {
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [showPass, setShowPass] = useState(false);
+
+            const handleLogin = (e) => {
+                e?.preventDefault();
+                if (username === settings.adminUser && password === settings.adminPass) {
+                    setIsLoggedIn(true);
+                    document.getElementById('loginModal').classList.add('hidden');
+                    Swal.fire({ title: 'เข้าสู่ระบบสำเร็จ!', icon: 'success', timer: 1500, showConfirmButton: false });
+                } else {
+                    Swal.fire({ title: 'ข้อผิดพลาด', text: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', icon: 'error' });
+                }
+            };
+
+            const close = () => document.getElementById('loginModal').classList.add('hidden');
+
+            return (
+                <div id="loginModal" className="hidden fixed inset-0 z-[100] flex items-center justify-center modal-overlay p-4 transition-opacity">
+                    <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-[pop_0.3s_ease-out]">
+                        <div className="p-8">
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-primary to-secondary rounded-2xl flex items-center justify-center shadow-lg mb-4 text-white">
+                                    <Icons.User className="w-8 h-8" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-800">ยินดีต้อนรับ</h2>
+                                <p className="text-sm text-gray-500">กรุณาเข้าสู่ระบบเพื่อจัดการข้อมูล</p>
+                            </div>
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้</label>
+                                    <input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition bg-white/50" placeholder="admin" required />
+                                </div>
+                                <div className="relative">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+                                    <input type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition bg-white/50 pr-12" placeholder="••••" required />
+                                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 p-1">
+                                        {showPass ? <Icons.EyeOff /> : <Icons.Eye />}
+                                    </button>
+                                </div>
+                                <button type="submit" className="w-full py-3 px-4 bg-gradient-to-r from-primary to-secondary text-white rounded-xl font-bold hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200">
+                                    เข้าสู่ระบบ
+                                </button>
+                                <button type="button" onClick={close} className="w-full py-2 text-sm text-gray-500 hover:text-gray-800 transition">
+                                    ยกเลิก
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const LandingPage = ({ settings, portfolios }) => {
+            return (
+                <div className="w-full">
+                    {/* Hero Section */}
+                    <div className="relative py-20 lg:py-32 px-4 overflow-hidden">
+                        <div className="max-w-4xl mx-auto text-center relative z-10">
+                            <h1 className="text-4xl md:text-6xl font-extrabold text-gray-800 mb-6 leading-tight drop-shadow-sm">
+                                ยินดีต้อนรับสู่ <br/>
+                                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                                    {settings.systemName}
+                                </span>
+                            </h1>
+                            <p className="text-lg md:text-xl text-gray-600 mb-10 max-w-2xl mx-auto break-word">
+                                {settings.desc}
+                            </p>
+                            <button onClick={() => document.getElementById('loginModal').classList.remove('hidden')} className="hover-bounce inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-blue-500 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl transition">
+                                <Icons.User /> เข้าสู่ระบบจัดการข้อมูล
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Interactive Dashboard (Public) */}
+                    <div className="max-w-7xl mx-auto px-4 pb-20">
+                        <div className="text-center mb-12">
+                            <h2 className="text-3xl font-bold text-gray-800 mb-4 relative inline-block">
+                                ผลงานเด่นปีการศึกษา {settings.currentYear}
+                                <div className="absolute -bottom-2 left-1/4 right-1/4 h-1 bg-gradient-to-r from-primary to-secondary rounded-full"></div>
+                            </h2>
+                        </div>
+
+                        <div className="space-y-16">
+                            {CATEGORIES.map((cat, idx) => {
+                                if (!settings.publicToggles[cat]) return null;
+                                const catPorts = portfolios.filter(p => p.category === cat).slice(0, 4); // Show max 4 on public
+                                
+                                return (
+                                    <div key={idx} className="bg-white/60 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center text-white shadow-md" style={{backgroundImage: `linear-gradient(135deg, ${COLORS[idx]}, ${COLORS[(idx+1)%COLORS.length]})`}}>
+                                                {getCategoryIcon(idx)}
+                                            </div>
+                                            <h3 className="text-2xl font-bold text-gray-800">{cat}</h3>
+                                        </div>
+                                        
+                                        {catPorts.length > 0 ? (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                                {catPorts.map(p => (
+                                                    <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition hover-bounce border border-gray-100 flex flex-col h-full">
+                                                        {p.fileType.startsWith('image/') ? (
+                                                            <div className="h-40 w-full rounded-xl overflow-hidden mb-4 bg-gray-100 relative group">
+                                                                <img src={p.fileData} alt={p.title} className="w-full h-full object-cover transition duration-300 group-hover:scale-110" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="h-40 w-full rounded-xl bg-gray-50 flex flex-col items-center justify-center mb-4 text-gray-400">
+                                                                <Icons.File className="w-12 h-12 mb-2" />
+                                                                <span className="text-xs uppercase">{p.fileType.split('/')[1] || 'Document'}</span>
+                                                            </div>
+                                                        )}
+                                                        <h4 className="font-bold text-gray-800 text-lg mb-1 line-clamp-2 break-word">{p.title}</h4>
+                                                        <p className="text-sm text-gray-500 mb-2 truncate"><Icons.Home className="inline w-3 h-3 mr-1"/>{p.agency}</p>
+                                                        <div className="mt-auto pt-3 border-t border-gray-50 flex justify-between items-center text-xs text-gray-400">
+                                                            <span>{formatThaiDate(p.date)}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-gray-400 text-center py-8">ยังไม่มีข้อมูลในหมวดหมู่นี้</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Dashboard = ({ portfolios }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (chartRef.current) {
+                    if (chartInstance.current) {
+                        chartInstance.current.destroy();
+                    }
+                    const counts = CATEGORIES.map(cat => portfolios.filter(p => p.category === cat).length);
+                    
+                    chartInstance.current = new Chart(chartRef.current, {
+                        type: 'doughnut',
+                        data: {
+                            labels: CATEGORIES,
+                            datasets: [{
+                                data: counts,
+                                backgroundColor: COLORS,
+                                borderWidth: 0,
+                                hoverOffset: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'bottom', labels: { font: { family: 'Noto Sans Thai' } } }
+                            },
+                            cutout: '70%'
+                        }
+                    });
+                }
+            }, [portfolios]);
+
+            return (
+                <div className="space-y-6">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800">แดชบอร์ดสรุปผล</h2>
+                    
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <div className="col-span-2 md:col-span-1 lg:col-span-1 bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center justify-center hover-bounce text-center">
+                            <h3 className="text-gray-500 text-sm font-medium mb-2">ผลงานทั้งหมด</h3>
+                            <p className="text-4xl font-extrabold text-gray-800">{portfolios.length}</p>
+                        </div>
+                        {CATEGORIES.map((cat, idx) => {
+                            const count = portfolios.filter(p => p.category === cat).length;
+                            return (
+                                <div key={idx} className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 hover-bounce flex flex-col justify-between">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{backgroundColor: COLORS[idx]}}>
+                                            {getCategoryIcon(idx)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-bold text-gray-800">{count}</p>
+                                        <p className="text-xs text-gray-500 mt-1 line-clamp-1">{cat}</p>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Chart */}
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 lg:col-span-1 h-[400px]">
+                            <h3 className="font-bold text-gray-700 mb-4">สัดส่วนผลงาน</h3>
+                            <div className="h-[300px] relative w-full">
+                                <canvas ref={chartRef}></canvas>
+                            </div>
+                        </div>
+                        
+                        {/* Manual / Info */}
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 lg:col-span-2 flex flex-col">
+                            <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
+                                <Icons.Award className="text-primary" /> คู่มือการใช้งานเบื้องต้น
+                            </h3>
+                            <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+                                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                    <h4 className="font-semibold text-blue-800 mb-1">1. การอัปโหลด</h4>
+                                    <p className="text-sm text-blue-600">ไปที่เมนู "อัปโหลดผลงาน" กรอกข้อมูลและแนบไฟล์ (ระบบจะทำการลดขนาดรูปภาพให้อัตโนมัติ)</p>
+                                </div>
+                                <div className="p-4 bg-pink-50 rounded-2xl border border-pink-100">
+                                    <h4 className="font-semibold text-pink-800 mb-1">2. การจัดการข้อมูล</h4>
+                                    <p className="text-sm text-pink-600">เมนู "ผลงานทั้งหมด" สามารถค้นหา ลบ และแก้ไขข้อมูลได้ ข้อมูลจะถูกบันทึกใน LocalStorage ทันที</p>
+                                </div>
+                                <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100">
+                                    <h4 className="font-semibold text-purple-800 mb-1">3. การตั้งค่าปีการศึกษา</h4>
+                                    <p className="text-sm text-purple-600">ที่เมนู "ตั้งค่าระบบ" คุณสามารถเปลี่ยนปีการศึกษา ข้อมูลในหน้าจัดการจะแสดงเฉพาะปีที่เลือกอยู่เท่านั้น</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const UploadForm = ({ portfolios, setPortfolios, currentYear, setCurrentRoute }) => {
+            const [formData, setFormData] = useState({ title: '', category: CATEGORIES[0], date: '', agency: '' });
+            const [file, setFile] = useState(null);
+            const [preview, setPreview] = useState(null);
+            const [uploading, setUploading] = useState(false);
+            const [progress, setProgress] = useState(0);
+
+            // Compress Image Logic
+            const compressImage = (file) => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.src = event.target.result;
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+                            const max = 800; // Max dimension
+
+                            if (width > height && width > max) { height *= max / width; width = max; }
+                            else if (height > max) { width *= max / height; height = max; }
+
+                            canvas.width = width; canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            // Compress to 0.6 quality JPEG
+                            resolve(canvas.toDataURL('image/jpeg', 0.6));
+                        };
+                    };
+                });
+            };
+
+            const handleFileChange = (e) => {
+                const selected = e.target.files[0];
+                if (!selected) return;
+
+                if (selected.size > 10 * 1024 * 1024) {
+                    Swal.fire('ขนาดไฟล์เกิน', 'กรุณาอัปโหลดไฟล์ขนาดไม่เกิน 10MB', 'warning');
+                    e.target.value = ''; return;
+                }
+
+                setFile(selected);
+                
+                if (selected.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => setPreview(e.target.result);
+                    reader.readAsDataURL(selected);
+                } else {
+                    setPreview(null);
+                }
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!file) { Swal.fire('แจ้งเตือน', 'กรุณาเลือกไฟล์', 'warning'); return; }
+
+                setUploading(true);
+                
+                // Simulate progress
+                const interval = setInterval(() => {
+                    setProgress(p => {
+                        if (p >= 90) { clearInterval(interval); return 90; }
+                        return p + 15;
+                    });
+                }, 100);
+
+                try {
+                    let fileData = '';
+                    if (file.type.startsWith('image/')) {
+                        fileData = await compressImage(file);
+                    } else {
+                        // For documents in this demo, read as base64 (Note: large PDFs might exceed LocalStorage limits)
+                        const reader = new FileReader();
+                        fileData = await new Promise(resolve => {
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+
+                    setProgress(100);
+                    clearInterval(interval);
+
+                    const newPort = {
+                        id: Date.now().toString(),
+                        ...formData,
+                        fileData,
+                        fileType: file.type,
+                        fileName: file.name,
+                        academicYear: currentYear,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    setTimeout(() => {
+                        setPortfolios([newPort, ...portfolios]);
+                        setUploading(false);
+                        setProgress(0);
+                        Swal.fire({
+                            title: 'อัปโหลดสำเร็จ!',
+                            text: 'บันทึกข้อมูลและลดขนาดไฟล์เรียบร้อยแล้ว',
+                            icon: 'success',
+                            confirmButtonColor: '#ff7eb3'
+                        }).then(() => {
+                            setFormData({ title: '', category: CATEGORIES[0], date: '', agency: '' });
+                            setFile(null); setPreview(null);
+                            document.getElementById('fileInput').value = '';
+                        });
+                    }, 500); // UI delay for 100%
+
+                } catch (error) {
+                    clearInterval(interval); setUploading(false);
+                    Swal.fire('ผิดพลาด', 'ไม่สามารถประมวลผลไฟล์ได้ พื้นที่เก็บข้อมูลอาจเต็ม', 'error');
+                }
+            };
+
+            return (
+                <div className="max-w-3xl mx-auto space-y-6">
+                    <h2 className="text-2xl font-bold text-gray-800">เพิ่มผลงานใหม่</h2>
+                    
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8 relative overflow-hidden">
+                        {uploading && (
+                            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                                <div className="w-16 h-16 border-4 border-gray-200 border-t-primary rounded-full animate-spin mb-4"></div>
+                                <p className="font-bold text-gray-700">กำลังอัปโหลดและบีบอัด... {progress}%</p>
+                                <div className="w-64 bg-gray-200 rounded-full h-2.5 mt-3 overflow-hidden">
+                                    <div className="bg-gradient-to-r from-primary to-secondary h-2.5 rounded-full transition-all duration-300" style={{width: `${progress}%`}}></div>
+                                </div>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">ชื่อผลงาน</label>
+                                    <input type="text" required value={formData.title} onChange={e=>setFormData({...formData, title: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary outline-none" placeholder="เช่น เกียรติบัตรเรียนดี..." />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">หมวดหมู่</label>
+                                    <select value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary outline-none bg-white">
+                                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">หน่วยงานที่จัด/มอบ</label>
+                                    <input type="text" required value={formData.agency} onChange={e=>setFormData({...formData, agency: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary outline-none" placeholder="เช่น กระทรวงศึกษาธิการ" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">วันที่ (พ.ศ.)</label>
+                                    <input type="date" required value={formData.date} onChange={e=>setFormData({...formData, date: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary outline-none" />
+                                    <p className="text-xs text-gray-400 mt-1">* ระบบจะแปลงเป็นปี พ.ศ. อัตโนมัติ</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-4">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">ไฟล์ผลงาน (.pdf, .jpg, .png สูงสุด 10MB)</label>
+                                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50 transition cursor-pointer relative" onClick={() => document.getElementById('fileInput').click()}>
+                                    <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" className="hidden" onChange={handleFileChange} />
+                                    
+                                    {preview ? (
+                                        <div className="flex flex-col items-center">
+                                            <img src={preview} alt="Preview" className="h-32 object-contain mb-3 rounded shadow-sm" />
+                                            <p className="text-sm font-medium text-gray-600 truncate max-w-xs">{file.name}</p>
+                                            <p className="text-xs text-primary mt-1">คลิกเพื่อเปลี่ยนไฟล์</p>
+                                        </div>
+                                    ) : file ? (
+                                        <div className="flex flex-col items-center">
+                                            <div className="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mb-3"><Icons.File /></div>
+                                            <p className="text-sm font-medium text-gray-600 truncate max-w-xs">{file.name}</p>
+                                            <p className="text-xs text-primary mt-1">คลิกเพื่อเปลี่ยนไฟล์</p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center text-gray-400">
+                                            <Icons.Upload className="w-12 h-12 mb-2" />
+                                            <p>คลิกเพื่อเลือกไฟล์ หรือ ลากไฟล์มาวาง</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <button type="submit" className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-xl hover:shadow-lg hover:-translate-y-1 transition">
+                                บันทึกผลงาน
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const ManagePortfolios = ({ portfolios, setPortfolios, activePortfolios, currentYear }) => {
+            const [search, setSearch] = useState('');
+            const [filterCat, setFilterCat] = useState('all');
+            const [viewItem, setViewItem] = useState(null);
+            const [editItem, setEditItem] = useState(null);
+
+            const filtered = activePortfolios.filter(p => {
+                const matchSearch = p.title.toLowerCase().includes(search.toLowerCase()) || p.agency.toLowerCase().includes(search.toLowerCase());
+                const matchCat = filterCat === 'all' || p.category === filterCat;
+                return matchSearch && matchCat;
+            }).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const handleDelete = (id) => {
+                Swal.fire({
+                    title: 'ยืนยันการลบ?',
+                    text: "คุณจะไม่สามารถกู้คืนข้อมูลนี้ได้!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'ลบเลย!',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        setPortfolios(portfolios.filter(p => p.id !== id));
+                        Swal.fire('ลบแล้ว!', 'ไฟล์ถูกลบเรียบร้อย', 'success');
+                    }
+                });
+            };
+
+            const handleEditSave = (e) => {
+                e.preventDefault();
+                setPortfolios(portfolios.map(p => p.id === editItem.id ? editItem : p));
+                Swal.fire('อัปเดตสำเร็จ', 'บันทึกข้อมูลลง LocalStorage และ Google Sheet (จำลอง) เรียบร้อยแล้ว', 'success');
+                setEditItem(null);
+            };
+
+            const handleView = (item) => {
+                if(item.fileType === 'application/pdf') {
+                    // Create object URL and open in new tab for PDF
+                    const byteCharacters = atob(item.fileData.split(',')[1]);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) { byteNumbers[i] = byteCharacters.charCodeAt(i); }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const file = new Blob([byteArray], { type: 'application/pdf;base64' });
+                    const fileURL = URL.createObjectURL(file);
+                    window.open(fileURL, '_blank');
+                } else {
+                    setViewItem(item);
+                }
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <h2 className="text-2xl font-bold text-gray-800">จัดการผลงาน <span className="text-sm font-normal text-gray-500 bg-gray-200 px-2 py-1 rounded-full">ปี {currentYear}</span></h2>
+                        
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <input type="text" placeholder="ค้นหาชื่อผลงาน, หน่วยงาน..." value={search} onChange={e=>setSearch(e.target.value)} className="px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary outline-none w-full sm:w-64" />
+                            <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} className="px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary outline-none bg-white">
+                                <option value="all">ทุกหมวดหมู่</option>
+                                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-sm">
+                                        <th className="p-4 font-semibold">วันที่</th>
+                                        <th className="p-4 font-semibold w-1/3">ชื่อผลงาน</th>
+                                        <th className="p-4 font-semibold">หมวดหมู่</th>
+                                        <th className="p-4 font-semibold">หน่วยงาน</th>
+                                        <th className="p-4 font-semibold text-center">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.length === 0 && (
+                                        <tr><td colSpan="5" className="p-8 text-center text-gray-400">ไม่พบข้อมูล</td></tr>
+                                    )}
+                                    {filtered.map(p => (
+                                        <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
+                                            <td className="p-4 text-sm text-gray-600 whitespace-nowrap">{formatThaiDate(p.date)}</td>
+                                            <td className="p-4 font-medium text-gray-800 break-word">{p.title}</td>
+                                            <td className="p-4 text-sm">
+                                                <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg whitespace-nowrap">{p.category.split(' ')[1]}</span>
+                                            </td>
+                                            <td className="p-4 text-sm text-gray-600">{p.agency}</td>
+                                            <td className="p-4">
+                                                <div className="flex justify-center gap-2">
+                                                    <button onClick={() => handleView(p)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="ดูไฟล์"><Icons.Eye /></button>
+                                                    <button onClick={() => setEditItem(p)} className="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition" title="แก้ไข"><Icons.Edit /></button>
+                                                    <button onClick={() => handleDelete(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="ลบ"><Icons.Trash /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile Cards */}
+                        <div className="md:hidden flex flex-col p-4 gap-4">
+                            {filtered.length === 0 && <p className="text-center text-gray-400 py-4">ไม่พบข้อมูล</p>}
+                            {filtered.map(p => (
+                                <div key={p.id} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-md">{p.category.split(' ')[1]}</span>
+                                        <span className="text-xs text-gray-400">{formatThaiDate(p.date)}</span>
+                                    </div>
+                                    <h3 className="font-bold text-gray-800 text-lg break-word leading-tight">{p.title}</h3>
+                                    <p className="text-sm text-gray-500 truncate"><Icons.Home className="inline w-3 h-3 mr-1"/>{p.agency}</p>
+                                    <div className="mt-2 pt-3 border-t border-gray-50 flex justify-end gap-2">
+                                        <button onClick={() => handleView(p)} className="px-3 py-1.5 text-xs bg-blue-50 text-blue-600 rounded-lg font-medium">เปิดดู</button>
+                                        <button onClick={() => setEditItem(p)} className="px-3 py-1.5 text-xs bg-orange-50 text-orange-600 rounded-lg font-medium">แก้ไข</button>
+                                        <button onClick={() => handleDelete(p.id)} className="px-3 py-1.5 text-xs bg-red-50 text-red-600 rounded-lg font-medium">ลบ</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Edit Modal */}
+                    {editItem && (
+                        <Modal id="editModal" title="แก้ไขข้อมูล" onClose={() => setEditItem(null)}>
+                            <form onSubmit={handleEditSave} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-gray-700">ชื่อผลงาน</label>
+                                    <input type="text" value={editItem.title} onChange={e=>setEditItem({...editItem, title: e.target.value})} className="w-full p-2 rounded-lg border focus:ring-2 focus:ring-primary outline-none" required/>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-gray-700">หมวดหมู่</label>
+                                    <select value={editItem.category} onChange={e=>setEditItem({...editItem, category: e.target.value})} className="w-full p-2 rounded-lg border focus:ring-2 focus:ring-primary outline-none bg-white">
+                                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-gray-700">หน่วยงาน</label>
+                                    <input type="text" value={editItem.agency} onChange={e=>setEditItem({...editItem, agency: e.target.value})} className="w-full p-2 rounded-lg border focus:ring-2 focus:ring-primary outline-none" required/>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-gray-700">วันที่</label>
+                                    <input type="date" value={editItem.date} onChange={e=>setEditItem({...editItem, date: e.target.value})} className="w-full p-2 rounded-lg border focus:ring-2 focus:ring-primary outline-none" required/>
+                                </div>
+                                <button type="submit" className="w-full py-2 bg-primary text-white rounded-lg font-bold">บันทึกการเปลี่ยนแปลง</button>
+                            </form>
+                        </Modal>
+                    )}
+
+                    {/* View File Modal */}
+                    {viewItem && (
+                        <Modal id="viewModal" title={viewItem.title} onClose={() => setViewItem(null)}>
+                            <div className="flex flex-col items-center">
+                                {viewItem.fileType.startsWith('image/') ? (
+                                    <img src={viewItem.fileData} alt="file" className="max-w-full rounded-xl shadow-sm" />
+                                ) : (
+                                    <div className="p-8 text-center text-gray-500">
+                                        <Icons.File className="w-16 h-16 mx-auto mb-2 text-gray-300"/>
+                                        <p>ไฟล์เอกสาร {viewItem.fileName}</p>
+                                        <a href={viewItem.fileData} download={viewItem.fileName} className="mt-4 inline-block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm">ดาวน์โหลดไฟล์</a>
+                                    </div>
+                                )}
+                                <div className="mt-4 w-full text-sm text-gray-600 space-y-1 bg-gray-50 p-4 rounded-xl">
+                                    <p><b>หน่วยงาน:</b> {viewItem.agency}</p>
+                                    <p><b>วันที่:</b> {formatThaiDate(viewItem.date)}</p>
+                                    <p><b>หมวด:</b> {viewItem.category}</p>
+                                </div>
+                            </div>
+                        </Modal>
+                    )}
+                </div>
+            );
+        };
+
+        const CategoryView = ({ categoryName, portfolios }) => {
+            const filtered = portfolios.filter(p => p.category === categoryName).sort((a, b) => new Date(b.date) - new Date(a.date));
+            return (
+                <div className="space-y-6">
+                    <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-primary pl-3">{categoryName}</h2>
+                    {filtered.length === 0 ? (
+                        <div className="bg-white p-10 rounded-3xl text-center shadow-sm border border-gray-100">
+                            <Icons.File className="w-16 h-16 mx-auto text-gray-200 mb-4" />
+                            <p className="text-gray-500 text-lg">ยังไม่มีผลงานในหมวดหมู่นี้</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filtered.map(p => (
+                                <div key={p.id} className="bg-white rounded-3xl p-5 shadow-sm hover-bounce border border-gray-100 flex flex-col h-full">
+                                    {p.fileType.startsWith('image/') && (
+                                        <div className="h-48 w-full rounded-2xl overflow-hidden mb-4 bg-gray-50">
+                                            <img src={p.fileData} className="w-full h-full object-cover" alt="portfolio" />
+                                        </div>
+                                    )}
+                                    {!p.fileType.startsWith('image/') && (
+                                        <div className="h-48 w-full rounded-2xl bg-gray-50 mb-4 flex items-center justify-center">
+                                            <Icons.File className="w-16 h-16 text-gray-300" />
+                                        </div>
+                                    )}
+                                    <h3 className="font-bold text-gray-800 text-lg mb-2 line-clamp-2">{p.title}</h3>
+                                    <p className="text-sm text-gray-500 mb-4 flex-1">{p.agency}</p>
+                                    <div className="pt-3 border-t border-gray-100 text-sm text-gray-400">
+                                        {formatThaiDate(p.date)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const Settings = ({ settings, setSettings, portfolios, setPortfolios }) => {
+            const [newYear, setNewYear] = useState('');
+            const [passForm, setPassForm] = useState({ old: '', new: '', confirm: '' });
+
+            const handleSaveGeneral = (e) => {
+                e.preventDefault();
+                const form = e.target;
+                setSettings({
+                    ...settings,
+                    systemName: form.sysName.value,
+                    desc: form.desc.value
+                });
+                Swal.fire('สำเร็จ', 'บันทึกการตั้งค่าระบบแล้ว', 'success');
+            };
+
+            const handleAddYear = () => {
+                if(newYear && !settings.years.includes(newYear)) {
+                    setSettings({...settings, years: [...settings.years, newYear].sort((a,b)=>b-a)});
+                    setNewYear('');
+                    Swal.fire('สำเร็จ', `เพิ่มปีการศึกษา ${newYear} แล้ว`, 'success');
+                }
+            };
+
+            const togglePublic = (cat) => {
+                setSettings({
+                    ...settings,
+                    publicToggles: { ...settings.publicToggles, [cat]: !settings.publicToggles[cat] }
+                });
+            };
+
+            const handleChangePass = (e) => {
+                e.preventDefault();
+                if(passForm.old !== settings.adminPass) {
+                    Swal.fire('ผิดพลาด', 'รหัสผ่านเดิมไม่ถูกต้อง', 'error'); return;
+                }
+                if(passForm.new !== passForm.confirm) {
+                    Swal.fire('ผิดพลาด', 'รหัสผ่านใหม่ไม่ตรงกัน', 'error'); return;
+                }
+                setSettings({...settings, adminPass: passForm.new});
+                setPassForm({ old: '', new: '', confirm: '' });
+                Swal.fire('สำเร็จ', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว', 'success');
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto space-y-6">
+                    <h2 className="text-2xl font-bold text-gray-800">ตั้งค่าระบบ</h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* System General */}
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">ข้อมูลระบบทั่วไป</h3>
+                            <form onSubmit={handleSaveGeneral} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm mb-1 text-gray-600">ชื่อระบบ</label>
+                                    <input name="sysName" type="text" defaultValue={settings.systemName} className="w-full p-3 rounded-xl border outline-none focus:border-primary" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm mb-1 text-gray-600">คำอธิบาย</label>
+                                    <textarea name="desc" defaultValue={settings.desc} className="w-full p-3 rounded-xl border outline-none focus:border-primary h-24 resize-none"></textarea>
+                                </div>
+                                <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600">บันทึกข้อมูล</button>
+                            </form>
+                        </div>
+
+                        {/* Academic Year Management */}
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">จัดการปีการศึกษา</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm mb-1 text-gray-600">ปีการศึกษาที่แสดงผลปัจจุบัน</label>
+                                    <select value={settings.currentYear} onChange={e=>setSettings({...settings, currentYear: e.target.value})} className="w-full p-3 rounded-xl border outline-none focus:border-primary bg-gray-50 font-bold text-primary">
+                                        {settings.years.map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                    <p className="text-xs text-gray-400 mt-1">ข้อมูลในระบบจะเปลี่ยนไปตามปีที่เลือก</p>
+                                </div>
+                                <div className="pt-2">
+                                    <label className="block text-sm mb-1 text-gray-600">เพิ่มปีการศึกษาใหม่</label>
+                                    <div className="flex gap-2">
+                                        <input type="number" placeholder="เช่น 2569" value={newYear} onChange={e=>setNewYear(e.target.value)} className="flex-1 p-3 rounded-xl border outline-none focus:border-primary" />
+                                        <button onClick={handleAddYear} className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600">เพิ่ม</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Public Route Toggles */}
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">การแสดงผลสาธารณะ (Landing Page)</h3>
+                            <div className="space-y-3">
+                                {CATEGORIES.map(cat => (
+                                    <div key={cat} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition">
+                                        <span className="text-sm text-gray-700">{cat}</span>
+                                        <button onClick={() => togglePublic(cat)} className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${settings.publicToggles[cat] ? 'bg-primary' : 'bg-gray-300'}`}>
+                                            <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform duration-300 ${settings.publicToggles[cat] ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Change Password */}
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-gray-700 mb-4 border-b pb-2 text-red-500">เปลี่ยนรหัสผ่าน Admin</h3>
+                            <form onSubmit={handleChangePass} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs mb-1 text-gray-600">รหัสผ่านเดิม</label>
+                                    <input type="password" required value={passForm.old} onChange={e=>setPassForm({...passForm, old: e.target.value})} className="w-full p-2 rounded-lg border outline-none focus:border-red-400" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs mb-1 text-gray-600">รหัสผ่านใหม่</label>
+                                    <input type="password" required value={passForm.new} onChange={e=>setPassForm({...passForm, new: e.target.value})} className="w-full p-2 rounded-lg border outline-none focus:border-red-400" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs mb-1 text-gray-600">ยืนยันรหัสผ่านใหม่</label>
+                                    <input type="password" required value={passForm.confirm} onChange={e=>setPassForm({...passForm, confirm: e.target.value})} className="w-full p-2 rounded-lg border outline-none focus:border-red-400" />
+                                </div>
+                                <button type="submit" className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 w-full">อัปเดตรหัสผ่าน</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Utility
+        const formatThaiDate = (dateString) => {
+            if(!dateString) return '';
+            const date = new Date(dateString);
+            const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear() + 543}`;
+        };
+
+        // Render App
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
